@@ -7,22 +7,24 @@ Created 12/17/2022
 import tkinter as tk
 
 import modelisation as md
+import numpy as np
+import math as m
 
 # initialisation parametres
-l1 = 10
-l2 = 5
-l3 = 5
-l4 = 5
-l5 = 5
-h1 = 10
-h2 = 10
+#parametres
+L1 = 1
+L2 = 2
+L3 = 1
+L4 = 1
+L5 = 1
+h1 = 1
+h2 = 1
 
 # inputs
 theta = 30
-pointA = [25, 9, h1 + h2]
-pointB = [15, 15, 30]
+pointA = [6, 1, 3]
+pointB = [6, 1, 3]
 
-print()
 
 root = tk.Tk()
 root.title("Modelisation du robot RRPR")
@@ -74,6 +76,12 @@ def submit():
 
 def lancerMod():
     print(f"l1 saisi: {l1}")
+    print(f"l2 saisi: {l2}")
+    print(f"l3 saisi: {l3}")
+    print(f"l4 saisi: {l4}")
+    print(f"l5 saisi: {l5}")
+    print(f"h1 saisi: {h1}")
+    print(f"h2 saisi: {h2}")
     mod = md.Modelisation()
     mod.setParametres(l1, l2, l3, l4, l5, h1, h2)
     mod.setInputs(pointA, pointB, theta)
