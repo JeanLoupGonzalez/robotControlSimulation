@@ -31,7 +31,7 @@ root = tk.Tk()
 root.title("Modelisation du robot RRPR")
 
 # setting the windows size
-root.geometry("600x400")
+root.geometry("500x300")
 
 # declaring string variable
 # for storing name and password
