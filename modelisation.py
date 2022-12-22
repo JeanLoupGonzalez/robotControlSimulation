@@ -36,7 +36,7 @@ class Modelisation:
 
     # initialisation de tous les attributs utilisant numpy
     def __init__(self):
-        self.taille = 100000  # combien de points on prends entre 0 et tf s
+        self.taille = 3000  # combien de points on prends entre 0 et tf s
 
         # parametre pour la trajectoire
         self.pointA = []
@@ -74,6 +74,7 @@ class Modelisation:
         self.calculXYZ()
         self.calculMGI()
         self.calculMDI()
+        self.calculMAI()
 
     def setParametres(self, L1, L2, L3, L4, L5, H1, H2):
         self.l1 = L1 * np.ones(self.taille)
@@ -138,11 +139,15 @@ class Modelisation:
         C3 = self.l3 + self.l4
 
         # calcul de q2 -> 2 solutions possibles
-        # q1 et q4 ont dépendent de q2 donc 2 solutions possible pour chaque variable
+        # q1 et q4 dépendent de q2 donc 2 solutions possible pour chaque variable
 
         # on commence par calculer q2 -> on a besoin alors de cos(q2) et sin(q2) = sqrt(1 - cos(q2)²) ces qui nous donne 2 résultats possible : un positif et un négatif
         cosq2 = (np.square(C1) + np.square(C2) - np.square(self.l2) - np.square(C3)) / (2 * self.l2 * (C3))
-        sinq2 = np.ones(self.taille) - np.square(cosq2)
+
+        carrecosq2 = np.square(cosq2)
+        carrecosq2[carrecosq2 >= 0.999] = 0.9
+
+        sinq2 = (np.ones(self.taille) - carrecosq2)
 
         B1 = self.l2 + (C3) * cosq2
 
@@ -187,19 +192,26 @@ class Modelisation:
             # Ici on donne directement la formule de la Jacobienne mais la démarche
             # pour l'avoir est detaillée dans le rapport
 
-            v1 = [c12[i] * self.l2[i] * s2[i] - s12[i] * (self.l1[i] * c2[i] + self.l3[i] + self.l4[i]),
-                  -s12[i] * (self.l3[i] - self.l4[i]), s12[i] * self.l4[i], 2 * self.l4[i] * s12[i]]
-            v2 = [s12[i] * self.l1[i] * s2[i] + c12[i] * (self.l1[i] * c2[i] + self.l3[i] + self.l4[i]),
-                  c12[i] * (self.l3[i] - self.l4[i]), -c12[i] * self.l4[i], -2 * self.l4[i] * c12[i]]
-            J = np.array([v1, v2, [0, 0, 1, 0], [1, 1, 1, 1]])
+            v1 = [-self.l2[i] * s1[i] - self.l3[i] * s12[i] - self.l4[i] * s12[i], (-self.l3[i] - self.l4[i]) * s12[i],
+                  0, 0]
+            v2 = [self.l2[i] * c1[i] + self.l3[i] * c12[i] + self.l4[i] * c12[i], (self.l3[i] + self.l4[i]) * c12[i], 0,
+                  0]
+            J = np.array([v1, v2, [0, 0, 1, 0], [1, 1, 0, 1]])
 
-            X = [[self.x[i]], [self.y[i]], [self.z[i]], [1]]
-            q_point = np.dot(np.linalg.inv(J), X)
+            X_point = [[self.dx[i]], [self.dy[i]], [self.dz[i]], [0]]
+            q_point = np.dot(np.linalg.inv(J), X_point)
 
             self.q1_point = np.append(self.q1_point, q_point[0])
             self.q2_point = np.append(self.q2_point, q_point[1])
             self.q3_point = np.append(self.q3_point, q_point[2])
             self.q4_point = np.append(self.q4_point, q_point[3])
+
+    def calculMAI(self):
+        pas = self.tf / (self.taille - 1)
+        self.ddq1 = np.diff(self.q1_point) / pas
+        self.ddq2 = np.diff(self.q2_point) / pas
+        self.ddq3 = np.diff(self.q3_point) / pas
+        self.ddq4 = np.diff(self.q4_point) / pas
 
     """AFFICHAGES"""
 
@@ -273,41 +285,66 @@ class Modelisation:
         fig, axes = plt.subplots(2, 2, figsize=(20, 10))
 
         axes[0][0].set_title('solution1 de q1(t) , q1\'(t)')
-        axes[0][0].plot(self.t, self.q1_p, label=r'$q1(t)$')
+        # axes[0][0].plot(self.t,self.q1_p,label = r'$q1(t)$')
         axes[0][0].axvline(x=self.tv, ymin=0, ymax=11, color='magenta', alpha=0.5, linestyle='--', linewidth=4,
                            label=r'$T commutation$')
         axes[0][0].axhline(y=self.theta[0], xmin=0, xmax=self.taille, color='black', alpha=0.5, linestyle='-',
                            linewidth=4, label=r'$\theta$')
-        # axes[0][0].plot(self.t,self.q1_point,label = r'$q1\'(t)$')
+        axes[0][0].plot(self.t, self.q1_point, label=r'$q1\'(t)$')
+        # axes[0][0].plot(self.t[:-1],self.ddq1,label = r'$q_deuxPoint(t)$')
 
         axes[0][0].legend()
 
         axes[0][1].set_title('solution1 de q2(t) , q1\'(t)')
-        axes[0][1].plot(self.t, self.q2_p, color='green', label=r'$q2(t)$')
+        # axes[0][1].plot(self.t,self.q2_p,label = r'$q2(t)$')
         axes[0][1].axvline(x=self.tv, ymin=0, ymax=11, color='magenta', alpha=0.5, linestyle='--', linewidth=4,
                            label=r'$T commutation$')
         axes[0][1].axhline(y=self.theta[0], xmin=0, xmax=self.taille, color='black', alpha=0.5, linestyle='-',
                            linewidth=4, label=r'$\Theta$')
-        # axes[0][1].plot(self.t,self.q2_point,label = r'$q2\'(t)$')
+        axes[0][1].plot(self.t, self.q2_point, label=r'$q2\'(t)$')
+        # axes[0][1].plot(self.t[:-1],self.ddq2,label = r'$q2_deuxPoint(t)$')
 
         axes[0][1].legend()
 
         axes[1][0].set_title('solution1 de q3(t) ,  q3\'(t)')
-        axes[1][0].plot(self.t, self.q3, color='orange', label=r'$q3(t)$')
+        # axes[1][0].plot(self.t,self.q3,label = r'$q3(t)$')
         axes[1][0].axvline(x=self.tv, ymin=0, ymax=11, color='magenta', alpha=0.5, linestyle='--', linewidth=4,
                            label=r'$T commutation$')
-        # axes[1][0].plot(self.t,self.q3_point,label = r'$q3\'(t)$')
+        axes[1][0].plot(self.t, self.q3_point, label=r'$q3\'(t)$')
+        # axes[1][0].plot(self.t[:-1],self.ddq3,label = r'$q3_deuxPoint(t)$')
 
         axes[1][0].legend()
 
         axes[1][1].set_title('solution1 de q4(t) , q4\'(t)')
-        axes[1][1].plot(self.t, self.q4_p, color='red', label=r'$q4(t)$')
-        # axes[1][1].plot(self.t,self.q4_point,label = r'$q4\'(t)$')
+        # axes[1][1].plot(self.t,self.q4_p,label = r'$q4(t)$')
+        axes[1][1].plot(self.t, self.q4_point, label=r'$q4\'(t)$')
         axes[1][1].axvline(x=self.tv, ymin=0, ymax=11, color='magenta', alpha=0.5, linestyle='--', linewidth=4,
                            label=r'$T commutation$')
         axes[1][1].axhline(y=self.theta[0], xmin=0, xmax=self.taille, color='black', alpha=0.5, linestyle='-',
                            linewidth=4, label=r'$\Theta$')
+        # axes[1][1].plot(self.t[:-1],self.ddq4,label = r'$q4_deuxPoint(t)$')
 
+        axes[1][1].legend()
+
+        plt.show()
+
+    def affichageQdeuxPoint(self):
+        fig, axes = plt.subplots(2, 2, figsize=(20, 10))
+
+        axes[0][0].set_title('affichage de q1_deuxPoint')
+        axes[0][0].plot(self.t[:-1], self.ddq1, label=r'$q1_deuxPoint(t)$')
+        axes[0][0].legend()
+
+        axes[0][1].set_title('affichage de q2_deuxPoint')
+        axes[0][1].plot(self.t[:-1], self.ddq2, label=r'$q2_deuxPoint(t)$')
+        axes[0][1].legend()
+
+        axes[1][0].set_title('affichage de q3_deuxPoint')
+        axes[1][0].plot(self.t[:-1], self.ddq3, label=r'$q3_deuxPoint(t)$')
+        axes[1][0].legend()
+
+        axes[1][1].set_title('affichage de q4_deuxPoint')
+        axes[1][1].plot(self.t[:-1], self.ddq4, label=r'$q4_deuxPoint(t)$')
         axes[1][1].legend()
 
         plt.show()
@@ -340,3 +377,4 @@ class Modelisation:
         self.affichageP()
         self.affichageVit()
         self.affichageQ()
+        self.affichageQdeuxPoint()
